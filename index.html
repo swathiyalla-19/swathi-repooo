@@ -1,0 +1,208 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Student Tracker</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f0f4ff; }
+  h1   { color: #1a1d2e; margin-bottom: 16px; }
+
+  /* ── TOP BAR ── */
+  .bar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  input[type=text] { padding:8px 12px; border:2px solid #ddd; border-radius:8px; font-size:14px; width:220px; }
+  input[type=text]:focus { border-color:#f0c040; outline:none; }
+  button { padding:9px 18px; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn-add  { background:#f0c040; color:#1a1d2e; }
+  .btn-add:hover { background:#e5b030; }
+
+  /* ── SUMMARY ── */
+  .summary { display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+  .card { background:white; border-radius:10px; padding:14px 20px; text-align:center;
+          border-top:4px solid var(--c); min-width:110px; box-shadow:0 2px 6px rgba(0,0,0,.07); }
+  .card .big { font-size:1.8rem; font-weight:800; color:var(--c); }
+  .card .sm  { font-size:0.72rem; color:#888; margin-top:3px; }
+
+  /* ── TABLE ── */
+  table  { width:100%; border-collapse:collapse; background:white; border-radius:12px;
+           overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.08); }
+  thead  { background:#1a1d2e; color:white; }
+  th     { padding:12px 14px; text-align:left; font-size:13px; }
+  td     { padding:11px 14px; font-size:14px; border-bottom:1px solid #f0f0f0; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:#fafbff; }
+
+  /* ── BADGES ── */
+  .att  { font-weight:700; padding:3px 10px; border-radius:20px; font-size:13px; }
+  .g    { background:#dcfce7; color:#166534; }   /* good  */
+  .w    { background:#fef9c3; color:#854d0e; }   /* watch */
+  .b    { background:#fee2e2; color:#991b1b; }   /* bad   */
+  .mk   { padding:3px 8px; border-radius:6px; font-size:12px; font-weight:600; margin:2px; display:inline-block; }
+
+  /* ── ACTION BUTTONS ── */
+  .eb { background:#dbeafe; color:#1e40af; margin-right:5px; }
+  .db { background:#fee2e2; color:#991b1b; }
+  .eb,.db { padding:5px 12px; border-radius:6px; font-size:12px; font-weight:600; border:none; cursor:pointer; }
+
+  /* ── MODAL ── */
+  .ov   { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);
+          align-items:center; justify-content:center; z-index:99; }
+  .ov.on { display:flex; }
+  .box  { background:white; border-radius:14px; padding:28px; width:420px; max-width:95vw;
+          box-shadow:0 20px 50px rgba(0,0,0,.25); }
+  .box h2   { font-size:1.1rem; margin-bottom:18px; color:#1a1d2e; }
+  .box label { font-size:13px; font-weight:600; color:#444; display:block; margin:10px 0 4px; }
+  .box input { width:100%; padding:8px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px; }
+  .box input:focus { border-color:#f0c040; outline:none; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .mfoot { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+  .sv { background:#f0c040; color:#1a1d2e; } .cv { background:#eee; color:#333; }
+
+  /* ── TOAST ── */
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+           background:#1a1d2e; color:white; padding:11px 24px; border-radius:8px; font-size:14px;
+           z-index:999; transition:transform .3s; pointer-events:none; }
+  .toast.on { transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<h1>📋 Student Tracker</h1>
+
+<!-- Summary Cards -->
+<div class="summary">
+  <div class="card" style="--c:#3b82f6"><div class="big" id="cTotal">0</div><div class="sm">👥 Total</div></div>
+  <div class="card" style="--c:#10b981"><div class="big" id="cGood">0</div><div class="sm">✅ Good ≥80%</div></div>
+  <div class="card" style="--c:#f59e0b"><div class="big" id="cWatch">0</div><div class="sm">⚠️ Watch 75–79%</div></div>
+  <div class="card" style="--c:#ef4444"><div class="big" id="cBad">0</div><div class="sm">🔴 Critical &lt;75%</div></div>
+</div>
+
+<!-- Search + Add -->
+<div class="bar">
+  <input type="text" id="search" placeholder="🔍 Search name or roll..." oninput="render()">
+  <button class="btn-add" onclick="openAdd()">➕ Add Student</button>
+</div>
+
+<!-- Table -->
+<table>
+  <thead><tr>
+    <th>#</th><th>Name</th><th>Roll</th>
+    <th>Math</th><th>Physics</th><th>Chem</th><th>English</th><th>History</th><th>CS</th>
+    <th>Attendance</th><th>Actions</th>
+  </tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<!-- Modal -->
+<div class="ov" id="ov">
+  <div class="box">
+    <h2 id="mTitle">➕ Add Student</h2>
+    <label>Full Name *</label><input id="fName" placeholder="e.g. Aanya Sharma">
+    <label>Roll Number *</label><input id="fRoll" placeholder="e.g. S001">
+    <label>Attendance % * (0–100)</label><input id="fAtt" type="number" min="0" max="100" placeholder="e.g. 85">
+    <label>Subject Marks (0–100)</label>
+    <div class="row2">
+      <div><label>Math</label><input id="fMath" type="number" min="0" max="100"></div>
+      <div><label>Physics</label><input id="fPhy" type="number" min="0" max="100"></div>
+      <div><label>Chemistry</label><input id="fChem" type="number" min="0" max="100"></div>
+      <div><label>English</label><input id="fEng" type="number" min="0" max="100"></div>
+      <div><label>History</label><input id="fHist" type="number" min="0" max="100"></div>
+      <div><label>Comp.Sci</label><input id="fCs" type="number" min="0" max="100"></div>
+    </div>
+    <div class="mfoot">
+      <button class="cv" onclick="closeModal()">Cancel</button>
+      <button class="sv" onclick="save()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let data = [
+  {id:1, name:"Swathi",    roll:"01", att:92, math:88, phy:79, chem:82, eng:91, hist:76, cs:90},
+  {id:2, name:"Priya",     roll:"02", att:85, math:74, phy:68, chem:71, eng:80, hist:65, cs:78},
+  {id:3, name:"Lalitha",      roll:"03", att:78, math:62, phy:55, chem:60, eng:72, hist:58, cs:65},
+  {id:4, name:"Saranya",     roll:"04", att:95, math:95, phy:91, chem:88, eng:96, hist:89, cs:97},
+  {id:5, name:"Mounika",     roll:"05", att:70, math:58, phy:50, chem:45, eng:65, hist:52, cs:60},
+  {id:6, name:"Devi",       roll:"06", att:88, math:80, phy:75, chem:77, eng:85, hist:71, cs:83},
+  {id:7, name:"Reshma",       roll:"07", att:62, math:45, phy:40, chem:38, eng:55, hist:42, cs:50},
+  {id:8, name:"Jhansi",     roll:"08", att:91, math:86, phy:82, chem:80, eng:89, hist:78, cs:92},
+  {id:9, name:"Divya",      roll:"09", att:74, math:65, phy:60, chem:58, eng:70, hist:62, cs:68},
+  {id:10,name:"Aparna",     roll:"10", att:83, math:72, phy:68, chem:65, eng:78, hist:66, cs:75},
+];
+let nid=11, eid=null;
+
+const cl = v => Math.max(0, Math.min(100, v||0));
+const ac = a => a>=80?'g':a>=75?'w':'b';
+const mc = m => m>=75?'#dcfce7':m>=60?'#fef9c3':'#fee2e2';
+const tc = m => m>=75?'#166534':m>=60?'#854d0e':'#991b1b';
+const ini= n => n.trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const avC=['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const rows = data.filter(s => s.name.toLowerCase().includes(q) || s.roll.toLowerCase().includes(q));
+  const subs = ['math','phy','chem','eng','hist','cs'];
+  document.getElementById('tbody').innerHTML = rows.map((s,i) => `
+    <tr>
+      <td style="color:#aaa">${i+1}</td>
+      <td><span style="background:${avC[s.id%8]};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:8px">${ini(s.name)}</span><b>${s.name}</b><br><small style="color:#aaa">${s.roll}</small></td>
+      <td>${subs.slice(0,1).map(k=>`<span class="mk" style="background:${mc(s[k])};color:${tc(s[k])}">${s[k]}</span>`).join('')}</td>
+      <td>${`<span class="mk" style="background:${mc(s.phy)};color:${tc(s.phy)}">${s.phy}</span>`}</td>
+      <td>${`<span class="mk" style="background:${mc(s.chem)};color:${tc(s.chem)}">${s.chem}</span>`}</td>
+      <td>${`<span class="mk" style="background:${mc(s.eng)};color:${tc(s.eng)}">${s.eng}</span>`}</td>
+      <td>${`<span class="mk" style="background:${mc(s.hist)};color:${tc(s.hist)}">${s.hist}</span>`}</td>
+      <td>${`<span class="mk" style="background:${mc(s.cs)};color:${tc(s.cs)}">${s.cs}</span>`}</td>
+      <td><span class="att ${ac(s.att)}">${s.att}%</span></td>
+      <td><button class="eb" onclick="openEdit(${s.id})">✏️ Edit</button><button class="db" onclick="del(${s.id})">🗑️</button></td>
+    </tr>`).join('');
+  // summary
+  document.getElementById('cTotal').textContent = data.length;
+  document.getElementById('cGood').textContent  = data.filter(s=>s.att>=80).length;
+  document.getElementById('cWatch').textContent = data.filter(s=>s.att>=75&&s.att<80).length;
+  document.getElementById('cBad').textContent   = data.filter(s=>s.att<75).length;
+}
+
+function openAdd() {
+  eid=null;
+  document.getElementById('mTitle').textContent='➕ Add New Student';
+  ['fName','fRoll','fAtt','fMath','fPhy','fChem','fEng','fHist','fCs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ov').classList.add('on');
+}
+function openEdit(id) {
+  const s=data.find(x=>x.id===id); eid=id;
+  document.getElementById('mTitle').textContent='✏️ Edit — '+s.name;
+  document.getElementById('fName').value=s.name; document.getElementById('fRoll').value=s.roll;
+  document.getElementById('fAtt').value=s.att;   document.getElementById('fMath').value=s.math;
+  document.getElementById('fPhy').value=s.phy;   document.getElementById('fChem').value=s.chem;
+  document.getElementById('fEng').value=s.eng;   document.getElementById('fHist').value=s.hist;
+  document.getElementById('fCs').value=s.cs;
+  document.getElementById('ov').classList.add('on');
+}
+function closeModal() { document.getElementById('ov').classList.remove('on'); }
+
+function save() {
+  const name=document.getElementById('fName').value.trim();
+  const roll=document.getElementById('fRoll').value.trim();
+  const att=parseInt(document.getElementById('fAtt').value);
+  if(!name||!roll||isNaN(att)||att<0||att>100){toast('⚠️ Name, Roll & Attendance are required!');return;}
+  const obj={name,roll,att,math:cl(+document.getElementById('fMath').value),phy:cl(+document.getElementById('fPhy').value),
+    chem:cl(+document.getElementById('fChem').value),eng:cl(+document.getElementById('fEng').value),
+    hist:cl(+document.getElementById('fHist').value),cs:cl(+document.getElementById('fCs').value)};
+  if(eid===null){data.push({id:nid++,...obj});toast('✅ Student added!');}
+  else{const i=data.findIndex(s=>s.id===eid);data[i]={id:eid,...obj};toast('✅ Updated!');}
+  closeModal(); render();
+}
+function del(id) {
+  if(!confirm('Delete this student?')) return;
+  data=data.filter(s=>s.id!==id); render(); toast('🗑️ Deleted!');
+}
+function toast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),2800);
+}
+document.getElementById('ov').onclick=e=>{if(e.target===document.getElementById('ov'))closeModal();};
+render();
+</script>
+</body>
+</html>
